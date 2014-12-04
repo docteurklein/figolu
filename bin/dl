@@ -1,0 +1,19 @@
+#!/bin/bash
+
+message=$(tee)
+
+sha=$(echo $message | jq '.head_commit.id' | tr -d '"')
+repo=$(echo $message | jq '.repository.full_name' | tr -d '"')
+url=$(echo $message | jq '.repository.archive_url' | tr -d '"')
+url=${url/\{archive_format\}/tarball}
+url=${url/\{\/ref\}/\/$sha}
+dir="$root/$repo@$sha"
+
+echo "downloading $url in $dir \n"
+mkdir -p $dir
+curl -kL $url | tar xz -C $dir --strip-components=1
+
+cd $dir
+
+amqp-publish -s rabbit:5672 -e rewrite-fig -b "$dir"
+

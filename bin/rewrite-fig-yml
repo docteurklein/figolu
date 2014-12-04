@@ -1,0 +1,33 @@
+#!/bin/env php
+<?php
+
+require __DIR__.'/../vendor/autoload.php';
+
+use Symfony\Component\Yaml\Yaml;
+
+$dir = file_get_contents('php://stdin');
+$fig = Yaml::parse(file_get_contents("$dir/fig.yml"));
+
+var_dump($fig);
+foreach ($fig as $service => &$config) {
+    if (isset($config['ports'])) {
+        foreach ($config['ports'] as &$port) {
+            if (false !== strpos($port, ':')) {
+                $port = explode(':', $port)[1];
+            }
+        }
+    }
+}
+
+var_dump($fig);
+
+file_put_contents("$dir/fig.yml", Yaml::dump($fig));
+
+#$cnn = new AMQPConnection(['host' => 'rabbit:5672']);
+#$cnn->connect();
+#$ch = new AMQPChannel($cnn);
+#$ex = new AMQPExchange($ch);
+#$ex->bind('fig');
+#$ex->publish($dir);
+
+echo $dir;

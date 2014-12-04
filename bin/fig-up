@@ -1,0 +1,10 @@
+#!/bin/bash
+
+dir=$(tee)
+
+cd $dir
+
+fig build
+
+fig up -d
+fig ps

@@ -1,0 +1,64 @@
+app:
+    image: busybox
+    links: [rabbit, hook, dl, rewrite, fig]
+    command: /bin/true
+
+rabbit:
+    hostname: rabbit
+    build: fig/rabbit
+    volumes:
+        - fig/rabbit/data/log:/data/log
+        - fig/rabbit/data/mnesia:/data/mnesia
+    ports:
+        - 5672:5672
+        - 15672:15672
+
+hook:
+    build: fig/hook
+    command: mini-httpd -u root -p 8080 -d /src -c bin/hook -D
+    volumes:
+        - .:/src
+    links:
+        - rabbit
+    ports:
+        - 8080:8080
+
+commit:
+    image: radial/busyboxplus
+    volumes:
+        - .:/src
+    working_dir: /src
+    command: "curl -vX POST http://hook:8080/bin/hook -H 'Content-Type: application/json' -d @pushEvent.json"
+    links:
+        - hook
+
+dl:
+    build: fig/build
+    entrypoint: amqp-consume
+    command: -s rabbit:5672 -q dl bin/build
+    volumes:
+        - .:/src
+    working_dir: /src
+    links:
+        - rabbit
+
+rewrite:
+    build: fig/build
+    entrypoint: amqp-consume
+    command: -s rabbit:5672 -q rewrite "bin/rewrite-fig-yml && amqp-publish -s rabbit:5672 -e fig -b $(cat)"
+    volumes:
+        - .:/src
+    working_dir: /src
+    links:
+        - rabbit
+
+fig:
+    build: fig/build
+    entrypoint: amqp-consume
+    command: -s rabbit:5672 -q fig bin/fig-up
+    volumes:
+        - .:/src
+        - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /src
+    links:
+        - rabbit
